@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Language Recognition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 5px;
+        }
+
+        .info-box p {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .start-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .start-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #webcam-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #webcam-container canvas {
+            border-radius: 10px;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .prediction-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .prediction-title {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .prediction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .prediction-label {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .prediction-bar {
+            flex-grow: 1;
+            height: 25px;
+            background: #e0e0e0;
+            border-radius: 12px;
+            margin: 0 15px;
+            overflow: hidden;
+        }
+
+        .prediction-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            transition: width 0.3s ease;
+        }
+
+        .prediction-value {
+            font-weight: bold;
+            color: #333;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            margin: 20px 0;
+            font-size: 1.1em;
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: white;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤟 Sign Language Recognition</h1>
+        <p class="subtitle">Learn and practice sign language with AI</p>
+
+        <div class="info-box">
+            <p><strong>How to use:</strong></p>
+            <p>1. Click the "Start Camera" button below</p>
+            <p>2. Allow camera access when prompted</p>
+            <p>3. Show sign language gestures (A-Z, 0-9) to the camera</p>
+            <p>4. See real-time predictions and confidence scores</p>
+        </div>
+
+        <button class="start-button" onclick="init()" id="startButton">
+            📷 Start Camera
+        </button>
+
+        <div id="statusMessage"></div>
+        <div id="webcam-container"></div>
+        <div id="label-container"></div>
+    </div>
+
+    <div class="footer">
+        <p>Created by: Malaika, Ramya, Mridula, Trushi & Zaid</p>
+        <p>LSBU Student Ambassador Project 2025</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script>
+        const URL = "https://teachablemachine.withgoogle.com/models/hNS92q9WL/";
+        let model, webcam, labelContainer, maxPredictions;
+        let isRunning = false;
+
+        function showStatus(message, isError = false) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status-message ${isError ? 'status-error' : 'status-success'}">${message}</div>`;
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 3000);
+        }
+
+        async function init() {
+            if (isRunning) return;
+            
+            const button = document.getElementById('startButton');
+            button.disabled = true;
+            button.textContent = '⏳ Loading...';
+
+            try {
+                const modelURL = URL + "model.json";
+                const metadataURL = URL + "metadata.json";
+
+                showStatus('📦 Loading AI model...');
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                showStatus('📹 Starting camera...');
+                const flip = true;
+                webcam = new tmImage.Webcam(400, 400, flip);
+                await webcam.setup();
+                await webcam.play();
+                isRunning = true;
+
+                window.requestAnimationFrame(loop);
+
+                document.getElementById("webcam-container").innerHTML = '';
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+                labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = '<div class="prediction-container"><div class="prediction-title">Predictions</div><div id="predictions"></div></div>';
+
+                button.textContent = '✅ Camera Active';
+                showStatus('✨ Ready! Show your sign language gestures');
+
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('❌ Error: ' + error.message, true);
+                button.disabled = false;
+                button.textContent = '📷 Start Camera';
+            }
+        }
+
+        async function loop() {
+            if (!isRunning) return;
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            
+            prediction.sort((a, b) => b.probability - a.probability);
+            
+            const topPredictions = prediction.slice(0, 5);
+            
+            let html = '';
+            topPredictions.forEach(pred => {
+                const percentage = (pred.probability * 100).toFixed(1);
+                html += `
+                    <div class="prediction-item">
+                        <span class="prediction-label">${pred.className}</span>
+                        <div class="prediction-bar">
+                            <div class="prediction-fill" style="width: ${percentage}%"></div>
+                        </div>
+                        <span class="prediction-value">${percentage}%</span>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('predictions').innerHTML = html;
+        }
+    </script>
+</body>
+</html>
